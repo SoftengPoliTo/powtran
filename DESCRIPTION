@@ -1,0 +1,12 @@
+Package: powtran
+Type: Package
+Title: POWer TRace ANalyzer
+Version: 0.1
+Date: 2016-08-06
+Author: Marco Torchiano <marco.torchiano@polito.it>
+Maintainer: Marco Torchiano <marco.torchiano@polito.it>
+Description: This package is able to analyze power traces from repeated executions of software applications or algorithms in a efficient and accurate way.
+License: GPL (>= 2)
+LazyData: TRUE
+Suggests: testthat
+Imports: plyr

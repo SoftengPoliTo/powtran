@@ -1,0 +1,5 @@
+#exportPattern("^[[:alpha:]]+")
+export(extract.power,effective.power)
+S3method(plot,EnergyAnalysis)
+S3method(summary,EnergyAnalysis)
+import(plyr)
