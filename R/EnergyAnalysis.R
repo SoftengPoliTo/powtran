@@ -672,9 +672,9 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
 #                   2,4,4,5,
 #                   2,4,4,5,
 #                   6,3,3,6),4,byrow=TRUE))
-  layout(matrix(c(1,1,1,
-                  2,4,5,
-                  6,3,6),3,byrow=TRUE))
+  layout(matrix(c(1,1,
+                  2,4,
+                  5,3),3,byrow=TRUE))
   push.mar = par("mar")
   par(mar=c(3,2,0.2,0.2))
 
@@ -726,26 +726,26 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
 #     boxplot(x,ylab=ylab,xlim=c(0.5,1.2))
 #     segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
 #   }
-  bp <- function(x,ylab,...){
+  bp <- function(x,ylab,col.point=1,...){
     par=list(...)
     horizontal = FALSE
     if(!is.null(par$horizontal)){
       horizontal = par$horizontal
     }
 
-
+    MINX = 0
     if(horizontal){
-      par(mar=c(4,3,0,1))
-      boxplot(x,xlab=ylab,xlim=c(0.5,1.2),...);
+      par(mar=c(4,3,0,2))
+      boxplot(x,xlab=ylab,xlim=c(MINX,1.2),...);
     }else{
-      par(mar=c(3,4,0,1))
-      boxplot(x,ylab=ylab,xlim=c(0.5,1.2),...);
+      par(mar=c(3,4,0,2))
+      boxplot(x,ylab=ylab,xlim=c(MINX,1.2),...);
     }
 
     x <- sort(x)
     cs = 0.02
     while(TRUE){
-      slots = floor(.25 / (2*cs))
+      slots = floor((.75-MINX) / (2*cs))
       l = min(x)
       h = max(x)
       int = findInterval(x,l + (0:slots)*(h-l)/slots)
@@ -757,23 +757,38 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
     if(horizontal){
       asp.ratio = par("pin")[2]/par("pin")[1]
       xscale = diff(par("usr"))[1]
-      symbols(x,pos*cs*2+0.5,circles=rep(cs*asp.ratio*xscale,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
+      symbols(x,pos*cs*2+MINX,circles=rep(cs*asp.ratio*xscale,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
     }else{
-      symbols(pos*cs*2+0.5,x,circles=rep(cs,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
+      symbols(pos*cs*2+MINX,x,circles=rep(cs,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
     }
 
     #segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
   }
 
 
-  bp(x$work$P,"Power [W]")
+  bp(x$work$P,"Power [W]","purple")
 
   bp(x$work$duration,"Duration [s]",horizontal=TRUE)
 
-  par(mar=c(3,3,0,1))
+  par(mar=c(3,3,0,2))
   plot(x$work$duration,x$work$P,xlab="Duration [s]")
+  x.to = par("usr")[2]
+  for(e in pretty(x$work$E)){
+    curve(e / x,from=min(x$work$duration)*0.95,to=x.to,
+          col=rgb(1,.549,0,.6),add=TRUE)
+    y = e/x.to
+    if(y>min(x$work$P)){
+      text(x.to,y,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
+           adj = -0.1)
+    }else{
+      y=par("usr")[3]
+      x0 = e/y
+      text(x0,y,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
+           adj = c(0,-0.1))
+    }
+  }
 
-  bp(x$work$E,"Energy [J]")
+  bp(x$work$E,"Energy [J]","orange")
 
   layout(1)
   par(mar=push.mar)
