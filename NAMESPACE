@@ -3,3 +3,8 @@ export(extract.power,effective.power)
 S3method(plot,EnergyAnalysis)
 S3method(summary,EnergyAnalysis)
 import(plyr)
+importFrom("grDevices", "rgb")
+importFrom("graphics", "abline", "boxplot", "curve", "layout", "par",
+             "plot", "rect", "symbols", "text")
+  importFrom("stats", "density", "embed", "median", "quantile")
+  importFrom("utils", "head", "tail")

@@ -141,7 +141,7 @@ extract.power <- function(data,
                             include.rawdata=FALSE, # should rawdata be included?
                             baseline = "both"
 ){
-
+  start <- end <- NULL # to mute down CMD check
   ## Arguments parsing and adjustment ##
   if(is.data.frame(data)){
     if(! "P" %in% names(data)){
@@ -668,6 +668,8 @@ summary.EnergyAnalysis <- function(object, ...){
 
 plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   P <- NULL ## to mute down NOTE from R CMD check
+  start <- end <- NULL # to mute down CMD check
+
 #   layout(matrix(c(1,1,1,1,
 #                   2,4,4,5,
 #                   2,4,4,5,
@@ -773,17 +775,17 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   par(mar=c(3,3,0,2))
   plot(x$work$duration,x$work$P,xlab="Duration [s]")
   x.to = par("usr")[2]
+  y.from = par("usr")[3]
   for(e in pretty(x$work$E)){
     curve(e / x,from=min(x$work$duration)*0.95,to=x.to,
           col=rgb(1,.549,0,.6),add=TRUE)
     y = e/x.to
-    if(y>min(x$work$P)){
+    if(y>y.from){
       text(x.to,y,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
            adj = -0.1)
     }else{
-      y=par("usr")[3]
-      x0 = e/y
-      text(x0,y,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
+      x0 = e/y.from
+      text(x0,y.from,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
            adj = c(0,-0.1))
     }
   }
