@@ -678,7 +678,15 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   push.mar = par("mar")
   par(mar=c(3,2,0.2,0.2))
 
-  if(is.null(x$P)){
+  if(is.null(work.unit)){
+    l=1
+    r=x$n
+  }else{
+    l=x$markers$start[min(work.unit)]-median(x$markers$length)
+    r=x$markers$start[max(work.unit)+1]+median(x$markers$length)
+  }
+
+  if(!"P" %in% names(x)){
     if(is.null(work.unit)){
       dsd = x$P.sample
     }else{
@@ -687,13 +695,6 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
       dsd = x$P.sample[min(indexes):max(indexes),]
     }
   }else{
-    if(is.null(work.unit)){
-      l=1
-      r=x$n
-    }else{
-      l=x$markers$start[min(work.unit)]-median(x$markers$length)
-      r=x$markers$start[max(work.unit)+1]+median(x$markers$length)
-    }
     n = r-l
     m = mean(x$P[l:r])
     dsd = .ds(x$P[l:r],x$t)
@@ -715,10 +716,11 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
     }
   )
   }
-  rect(x$markers$start*x$t,min(dsd$P),x$markers$end*x$t,max(dsd$P),
-       col=rgb(0,1,.6,.1),border=NA,lty=2)
-  text((x$markers$start+x$markers$end)/2*x$t,max(dsd$P),col="navy",xpd=T,cex=0.6)
-
+  if("markers" %in% names(x)){
+    rect(x$markers$start*x$t,min(dsd$P),x$markers$end*x$t,max(dsd$P),
+         col=rgb(0,1,.6,.1),border=NA,lty=2)
+    text((x$markers$start+x$markers$end)/2*x$t,max(dsd$P),col="navy",xpd=T,cex=0.6)
+  }
 #   bp <- function(x,ylab){
 #     par(mar=c(3,5,0,1))
 #     boxplot(x,ylab=ylab,xlim=c(0.5,1.2))
