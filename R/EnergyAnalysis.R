@@ -666,9 +666,15 @@ summary.EnergyAnalysis <- function(object, ...){
   #cat(" Thoughput: ", (x$n / as.double(x$elapsed,units="secs") * 1e-6), "M samples per sec\n" )
 }
 
-plot.EnergyAnalysis <- function(x,work.unit=NULL,...){
+plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   P <- NULL ## to mute down NOTE from R CMD check
-  layout(matrix(c(1,2,1,3,1,4),2))
+#   layout(matrix(c(1,1,1,1,
+#                   2,4,4,5,
+#                   2,4,4,5,
+#                   6,3,3,6),4,byrow=TRUE))
+  layout(matrix(c(1,1,1,
+                  2,4,5,
+                  6,3,6),3,byrow=TRUE))
   push.mar = par("mar")
   par(mar=c(3,2,0.2,0.2))
 
@@ -713,16 +719,59 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,...){
        col=rgb(0,1,.6,.1),border=NA,lty=2)
   text((x$markers$start+x$markers$end)/2*x$t,max(dsd$P),col="navy",xpd=T,cex=0.6)
 
-  bp <- function(x,ylab){
-    par(mar=c(3,5,0,1))
-    boxplot(x,ylab=ylab,xlim=c(0.5,1.2))
-    segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
+#   bp <- function(x,ylab){
+#     par(mar=c(3,5,0,1))
+#     boxplot(x,ylab=ylab,xlim=c(0.5,1.2))
+#     segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
+#   }
+  bp <- function(x,ylab,...){
+    par=list(...)
+    horizontal = FALSE
+    if(!is.null(par$horizontal)){
+      horizontal = par$horizontal
+    }
+
+
+    if(horizontal){
+      par(mar=c(4,3,0,1))
+      boxplot(x,xlab=ylab,xlim=c(0.5,1.2),...);
+    }else{
+      par(mar=c(3,4,0,1))
+      boxplot(x,ylab=ylab,xlim=c(0.5,1.2),...);
+    }
+
+    x <- sort(x)
+    cs = 0.02
+    while(TRUE){
+      slots = floor(.25 / (2*cs))
+      l = min(x)
+      h = max(x)
+      int = findInterval(x,l + (0:slots)*(h-l)/slots)
+      if(max(table(int)) < slots) break
+      cs = cs / 5 * 4
+    }
+    pos = as.numeric(unlist(sapply(table(int),function(x) sample(seq(x),x)))) - 1
+
+    if(horizontal){
+      asp.ratio = par("pin")[2]/par("pin")[1]
+      xscale = diff(par("usr"))[1]
+      symbols(x,pos*cs*2+0.5,circles=rep(cs*asp.ratio*xscale,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
+    }else{
+      symbols(pos*cs*2+0.5,x,circles=rep(cs,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
+    }
+
+    #segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
   }
+
+
   bp(x$work$P,"Power [W]")
 
+  bp(x$work$duration,"Duration [s]",horizontal=TRUE)
+
+  par(mar=c(3,3,0,1))
+  plot(x$work$duration,x$work$P,xlab="Duration [s]")
 
   bp(x$work$E,"Energy [J]")
-  bp(x$work$duration,"Duration [s]")
 
   layout(1)
   par(mar=push.mar)
