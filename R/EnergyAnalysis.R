@@ -737,10 +737,8 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
 
     MINX = 0
     if(horizontal){
-      par(mar=c(4,3,0,2))
       boxplot(x,xlab=ylab,xlim=c(MINX,1.2),...);
     }else{
-      par(mar=c(3,4,0,2))
       boxplot(x,ylab=ylab,xlim=c(MINX,1.2),...);
     }
 
@@ -768,28 +766,41 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   }
 
 
+  par(mar=c(3,4,0,2))
   bp(x$work$P,"Power [W]","purple")
 
+  par(mar=c(4,3,0,3))
   bp(x$work$duration,"Duration [s]",horizontal=TRUE)
 
-  par(mar=c(3,3,0,2))
+  par(mar=c(3,3,0,3))
   plot(x$work$duration,x$work$P,xlab="Duration [s]")
   x.to = par("usr")[2]
   y.from = par("usr")[3]
+  even = TRUE
   for(e in pretty(x$work$E)){
+    if(even){
+      line.col = rgb(1,.549,0,.6)
+      text.col = rgb(1,.549,0,1)
+    }else{
+      line.col = rgb(.627,.125,.941,.6)
+      text.col = rgb(.627,.125,.941,1)
+    }
     curve(e / x,from=min(x$work$duration)*0.95,to=x.to,
-          col=rgb(1,.549,0,.6),add=TRUE)
+          col=line.col,add=TRUE)
     y = e/x.to
+
     if(y>y.from){
-      text(x.to,y,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
+      text(x.to,y,format(e,digits=2),xpd=TRUE,cex=0.7,col=text.col,
            adj = -0.1)
     }else{
       x0 = e/y.from
-      text(x0,y.from,format(e,digits=2),xpd=TRUE,cex=0.7,col="darkorange",
+      text(x0,y.from,format(e,digits=2),xpd=TRUE,cex=0.7,col=text.col,
            adj = c(0,-0.1))
     }
+    even <- !even
   }
 
+  par(mar=c(3,4,0,2))
   bp(x$work$E,"Energy [J]","orange")
 
   layout(1)

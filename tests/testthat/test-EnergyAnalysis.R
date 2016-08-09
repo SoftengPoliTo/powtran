@@ -38,8 +38,7 @@ period = 1/10000
 test_that("Clean trace RB pi 2 c_bubblesort_10000_3",{
   filename = "tests/raspberrypi2_c_bubblesort_10000_3.txt"
   samples = scan(filename,skip=1,quiet = TRUE)
-  res = extract.power(samples*voltage,period,
-                        intermediate=TRUE, include.rawdata = TRUE)
+  res = extract.power(samples*voltage,period)
   plot(res)
   #summary(res)
   expect_gte(dim(res$work)[1],30)
