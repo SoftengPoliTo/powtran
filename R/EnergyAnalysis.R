@@ -785,7 +785,7 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
       line.col = rgb(.627,.125,.941,.6)
       text.col = rgb(.627,.125,.941,1)
     }
-    curve(e / x,from=min(x$work$duration)*0.95,to=x.to,
+    curve(e / x,from=min(x$work$duration,na.rm=T)*0.95,to=x.to,
           col=line.col,add=TRUE)
     y = e/x.to
 
