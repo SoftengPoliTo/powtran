@@ -33,7 +33,7 @@ context("extract.power")
 voltage = 5
 period = 1/10000
 
-## Tests
+### TESTS #############################
 
 test_that("Clean trace RB pi 2 c_bubblesort_10000_3",{
   filename = "tests/raspberrypi2_c_bubblesort_10000_3.txt"
@@ -128,4 +128,31 @@ test_that("Good trace RB pi 2 quick 50k random",{
   expect_gte(sum(!is.na(res$work$P)),30)
 })
 
+test_that("Long trace from Android @ 125kHz",{
+  file = "tests/test1_android_125kHz.RData"
+  load(file)
+  res = extract.power(power.samples,
+                      t.sampling = 1/125000,
+                      marker.length = .300,
+                      baseline = "gmin"
+                      )
+  plot(res)
+  #summary(res)
+  expect_gte(dim(res$work)[1],30)
+  expect_gte(sum(!is.na(res$work$P)),10)
+})
 
+test_that("Long trace from Android @ 125kHz",{
+  file = "tests/test2_bubble_android.RData"
+  load(file)
+  #res = extract.power(power.samples,t.sampling = 1/125000,marker.length = .300)
+  res = extract.power(power.samples,
+                      t.sampling = 1/125000,
+                      marker.length = .300,
+                      baseline = "gmin")
+
+  plot(res)
+  #summary(res)
+  expect_gte(dim(res$work)[1],30)
+  expect_gte(sum(!is.na(res$work$P)),25)
+})

@@ -1,12 +1,32 @@
-## Energy analyzer
-##
-#library(reshape2)
-library(plyr)
+##########################################################################
+# Power Trace Analyzer
+#
+# Copyright Marco Torchiano <marco.torchiano@polito.it>, 2016
+#
+# This file is part of the `powtran` package
+#
+# Powtran is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# Foobar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+##########################################################################
+#library(plyr)
 
 ##########################################################################
 ## code by Martin Maechler <maechler at stat.math.ethz.ch>
 ## found on https://stat.ethz.ch/pipermail/r-help/2005-November/083376.html
 ## MTk added the extend option for peaks close the the edges
+#
 peaks <- function(series, span = 3, do.pad = FALSE, extend=TRUE) {
   if((span <- as.integer(span)) %% 2 != 1) stop("'span' must be odd")
   s1 <- 1:1 + (s <- span %/% 2)
@@ -57,6 +77,10 @@ outliers <- function(x,iqm=3,index=F,logic=F){
   x[l]
 }
 
+############################################################
+#
+# .ds downsample a time series
+#
 .ds <- function(x,t.sampling,ns=2048){
   n = length(x)
   step = floor(n/ns);
@@ -67,23 +91,23 @@ outliers <- function(x,iqm=3,index=F,logic=F){
 }
 
 
-dsplot <- function(x,ns=2000,main=NULL){
-  m = mean(x)
-  plot(P ~ t ,data=.ds(x,1),t="l")
-  abline(m,0,col="red")
-#   text(0,m,
-#        formatC(m,digits=3),col="red",adj = c(1,0),xpd=TRUE)
-#   if(!is.null(main)){
-#     title(main)
-#   }
-#   #xs = seq(0,2000,by=2000/30)
-#   #segments(xs,rep(1,length(xs)),xs,rep(1.7,length(xs)),col="orange",lty=2)
-#   mml = 40000
-#   mm = moving.mean(x,mml)
-#   lines(samples+mml/2,mm[samples],col="#ffffff7f",lty=1, lwd=2)
-#   lines(samples+mml/2,mm[samples],col="purple",lty=2)
-}
-
+# dsplot <- function(x,ns=2000,main=NULL){
+#   m = mean(x)
+#   plot(P ~ t ,data=.ds(x,1),t="l")
+#   abline(m,0,col="red")
+# #   text(0,m,
+# #        formatC(m,digits=3),col="red",adj = c(1,0),xpd=TRUE)
+# #   if(!is.null(main)){
+# #     title(main)
+# #   }
+# #   #xs = seq(0,2000,by=2000/30)
+# #   #segments(xs,rep(1,length(xs)),xs,rep(1.7,length(xs)),col="orange",lty=2)
+# #   mml = 40000
+# #   mm = moving.mean(x,mml)
+# #   lines(samples+mml/2,mm[samples],col="#ffffff7f",lty=1, lwd=2)
+# #   lines(samples+mml/2,mm[samples],col="purple",lty=2)
+# }
+#
 
 ######################################################################################
 #
@@ -128,7 +152,7 @@ dsplot <- function(x,ns=2000,main=NULL){
 #
 # - noise: the estimated length of noise runs
 #
-utils::suppressForeignCheck(c("res", "task.id","keep"))
+utils::suppressForeignCheck(c("res", "task.id","keep","start","end"))
 extract.power <- function(data,
                             t.sampling,            # sampling period [s]
                             N=30,                  # number of markers [#]
@@ -141,7 +165,7 @@ extract.power <- function(data,
                             include.rawdata=FALSE, # should rawdata be included?
                             baseline = "both"
 ){
-  start <- end <- NULL # to mute down CMD check
+  #start <- end <- NULL # to mute down CMD check
   ## Arguments parsing and adjustment ##
   if(is.data.frame(data)){
     if(! "P" %in% names(data)){
@@ -624,45 +648,57 @@ effective.power <- function(work,baseline="both",FUN=median){
 
 summary.EnergyAnalysis <- function(object, ...){
   x <- object
-  cat("Energy Analysis\n")
+  cat("Power Trace Analysis\n\n")
   d = as.difftime(x$n*x$t,units = "secs")
   if(d>=as.difftime("0:1:0")){
     units(d) <- "mins"
   }
-  cat("Trace with ",x$n,"samples, (total duration",format(d,digits=2),")","\n")
+  cat("Trace:",x$n,"samples, at ", 1/x$t, "Hz (elapsed,",format(d,digits=2),")","\n")
   cat("Identified:",dim(x$work)[1],"cycles")
-  n.valid = sum(!is.na(x$work$P.real))
+  n.valid = sum(!is.na(x$work$P))
   if(n.valid!=dim(x$work)[1]){
     nd = sum(is.na(x$work$duration))
-    np = n.valid - nd
-    cat(" (", n.valid, "with valid power values:\n\t",
-        nd, "because of anomalous duration,\n\t",
-        np, "because of negative power)\n"
+    np = dim(x$work)[1] - n.valid - nd
+    cat(" (", n.valid, "with valid power values:\n\t\t\t",
+        nd, "invalid due to anomalous duration,\n\t\t\t",
+        np, "invalid due to negative effective power)\n\n"
         )
   }else{
-    cat(" (all valid)\n")
+    cat(" (all valid)\n\n")
   }
-  cat("\nAll data outliers:\n")
+#  cat("\nAll data outliers:\n")
   with(x$work,{
   cat("  Power: mean=",format(mean(P,na.rm=TRUE),digits=3)," sd=",format(sd(P,na.rm=TRUE),digits=3)," (",
       round(sd(P,na.rm=TRUE)/mean(P,na.rm=TRUE)*100,1),"%)\n",sep="")
-  cat("         95%CI=(",paste(format(quantile(P,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
+  cat("         95%CI=(",paste(format(quantile(P,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n\n")
+  cat("   Time: mean=",format(mean(duration,na.rm=TRUE),digits=3)," sd=",format(sd(duration,na.rm=TRUE),digits=3)," (",
+      round(sd(duration,na.rm=TRUE)/mean(duration,na.rm=TRUE)*100,1),"%)\n",sep="")
+  cat("         95%CI=(",paste(format(quantile(duration,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n\n")
   cat(" Energy: mean=",format(mean(E,na.rm=TRUE),digits=3)," sd=",format(sd(E,na.rm=TRUE),digits=3)," (",
       round(sd(E,na.rm=TRUE)/mean(E,na.rm=TRUE)*100,1),"%)\n",sep="")
-  cat("         95%CI=(",paste(format(quantile(E,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
+  cat("         95%CI=(",paste(format(quantile(E,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n\n")
   }
   )
-  cat("\nWithout outliers:\n")
-  ol = outliers(x$work$P,logic=T) | outliers(x$work$duration,logic=T)
-  with(subset(x$work,!ol),{
-    cat("  Power: mean=",mean(P,na.rm=TRUE)," sd=",sd(P,na.rm=TRUE)," (",
-        round(sd(P,na.rm=TRUE)/mean(P,na.rm=TRUE)*100,1),"%)\n",sep="")
-    cat("         95%CI=(",paste(format(quantile(P,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
-    cat(" Energy: mean=",mean(E,na.rm=TRUE)," sd=",sd(E,na.rm=TRUE)," (",
-        round(sd(E,na.rm=TRUE)/mean(E,na.rm=TRUE)*100,1),"%)\n",sep="")
-    cat("         95%CI=(",paste(format(quantile(E,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
+  pars=list(...)
+  remove.outliers=FALSE
+  if("remove.outliers" %in% names(pars)){
+    remove.outliers = pars$remove.outliers
   }
-  )
+  if(remove.outliers){
+    cat("\nWithout outliers:\n")
+    ol = outliers(x$work$P,logic=T) |
+         outliers(x$work$duration,logic=T) |
+         outliers(x$work$E,logic=T)
+    with(subset(x$work,!ol),{
+      cat("  Power: mean=",mean(P,na.rm=TRUE)," sd=",sd(P,na.rm=TRUE)," (",
+          round(sd(P,na.rm=TRUE)/mean(P,na.rm=TRUE)*100,1),"%)\n",sep="")
+      cat("         95%CI=(",paste(format(quantile(P,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
+      cat(" Energy: mean=",mean(E,na.rm=TRUE)," sd=",sd(E,na.rm=TRUE)," (",
+          round(sd(E,na.rm=TRUE)/mean(E,na.rm=TRUE)*100,1),"%)\n",sep="")
+      cat("         95%CI=(",paste(format(quantile(E,c(.025,.975),na.rm=T),digits=3),collapse=" ; "),")\n")
+    }
+    )
+  }
   #cat(" Thoughput: ", (x$n / as.double(x$elapsed,units="secs") * 1e-6), "M samples per sec\n" )
 }
 
@@ -723,12 +759,8 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
          col=rgb(0,1,.6,.1),border=NA,lty=2)
     text((x$markers$start+x$markers$end)/2*x$t,max(dsd$P),col="navy",xpd=T,cex=0.6)
   }
-#   bp <- function(x,ylab){
-#     par(mar=c(3,5,0,1))
-#     boxplot(x,ylab=ylab,xlim=c(0.5,1.2))
-#     segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
-#   }
-  bp <- function(x,ylab,col.point=1,...){
+
+  bp <- function(x,ylab,col.point=1,hollow=NULL,...){
     par=list(...)
     horizontal = FALSE
     if(!is.null(par$horizontal)){
@@ -741,25 +773,40 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
     }else{
       boxplot(x,ylab=ylab,xlim=c(MINX,1.2),...);
     }
-
-    x <- sort(x)
+    xo = order(x)
+    x <- x[xo]
+    if(!is.null(hollow)){
+      hollow = hollow[xo]
+    }
     cs = 0.02
     while(TRUE){
       slots = floor((.75-MINX) / (2*cs))
-      l = min(x)
-      h = max(x)
+      l = min(x,na.rm=T)
+      h = max(x,na.rm=T)
       int = findInterval(x,l + (0:slots)*(h-l)/slots)
       if(max(table(int)) < slots) break
       cs = cs / 5 * 4
     }
-    pos = as.numeric(unlist(sapply(table(int),function(x) sample(seq(x),x)))) - 1
+    pos = as.numeric(unlist(sapply(table(int,useNA = "ifany"),function(x) sample(seq(x),x)))) - 1
+    y = pos*cs*2+MINX
 
     if(horizontal){
       asp.ratio = par("pin")[2]/par("pin")[1]
       xscale = diff(par("usr"))[1]
-      symbols(x,pos*cs*2+MINX,circles=rep(cs*asp.ratio*xscale,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
-    }else{
-      symbols(pos*cs*2+MINX,x,circles=rep(cs,length(x)),inches=FALSE,fg=NA,bg="purple",add=TRUE)
+
+      cs <- cs*asp.ratio*xscale
+      tmp = x
+      x = y
+      y = tmp
+    }
+    if(is.null(hollow)) hollow <- rep(FALSE,length(x))
+
+    if(!all(hollow))
+    symbols(y[!hollow],x[!hollow],circles=rep(cs,length(x))[!hollow],
+            inches=FALSE,fg=NA,bg=col.point,add=TRUE)
+    if(any(hollow)){
+      symbols(y[hollow],x[hollow],circles=rep(cs,length(x))[hollow],
+              inches=FALSE,fg=col.point,bg=NA,add=TRUE)
     }
 
     #segments(0,x,0.6,x,lwd=2,col=rgb(160/255,32/255,240/255,128/255))
@@ -770,14 +817,19 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
   bp(x$work$P,"Power [W]","purple")
 
   par(mar=c(4,3,0,3))
-  bp(x$work$duration,"Duration [s]",horizontal=TRUE)
+  bp(x$work$duration,"Duration [s]","purple",horizontal=TRUE,hollow=is.na(x$work$P))
 
   par(mar=c(3,3,0,3))
   plot(x$work$duration,x$work$P,xlab="Duration [s]")
   x.to = par("usr")[2]
   y.from = par("usr")[3]
   even = TRUE
-  for(e in pretty(x$work$E)){
+  energy = pretty(x$work$E)
+  if(0 %in% energy){
+    zi = which(energy==0)
+    energy[zi] = min(energy[-zi])/5
+  }
+  for(e in energy){
     if(even){
       line.col = rgb(1,.549,0,.6)
       text.col = rgb(1,.549,0,1)
@@ -785,7 +837,8 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
       line.col = rgb(.627,.125,.941,.6)
       text.col = rgb(.627,.125,.941,1)
     }
-    curve(e / x,from=min(x$work$duration,na.rm=T)*0.95,to=x.to,
+
+    curve(e / x,from=max(par("usr")[1],0),to=x.to,
           col=line.col,add=TRUE)
     y = e/x.to
 
