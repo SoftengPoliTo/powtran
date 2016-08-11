@@ -142,8 +142,23 @@ test_that("Long trace from Android @ 125kHz",{
   expect_gte(sum(!is.na(res$work$P)),10)
 })
 
-test_that("Long trace from Android @ 125kHz",{
+test_that("Norm trace from Android @ 125kHz",{
   file = "tests/test2_bubble_android.RData"
+  load(file)
+  #res = extract.power(power.samples,t.sampling = 1/125000,marker.length = .300)
+  res = extract.power(power.samples,
+                      t.sampling = 1/125000,
+                      marker.length = .300,
+                      baseline = "gmin")
+
+  plot(res)
+  #summary(res)
+  expect_gte(dim(res$work)[1],30)
+  expect_gte(sum(!is.na(res$work$P)),25)
+})
+
+test_that("Usual trace from Android @ 125kHz",{
+  file = "tests/test_with_file.RData"
   load(file)
   #res = extract.power(power.samples,t.sampling = 1/125000,marker.length = .300)
   res = extract.power(power.samples,

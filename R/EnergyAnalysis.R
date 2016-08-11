@@ -211,12 +211,15 @@ extract.power <- function(data,
 
   ## Tries different span values to be able to find at least
   ## two distinct peaks
-  spans = rev(seq(3,peakspan,by=2))
+  spans = rev(seq(9,peakspan,by=2))
   for(sp in spans){
     dens$peaks <- which(peaks(dens$y,span=sp) & dens$y>mean(dens$y))
     if(length(dens$peaks) >= 2){
       break
     }
+  }
+  if(length(dens$peaks)<=1){
+    stop("The data is unimodal: impossible to identify edges!")
   }
 
   ## Identify level thresholds between levels
@@ -239,7 +242,6 @@ extract.power <- function(data,
     result$thresholds = thresholds
   }
 
-
   ## 2. Tagging samples ##
   ## tag levels are those corresponding to peaks
   tag.levels <- paste0("L",seq(dens$peaks))
@@ -258,6 +260,9 @@ extract.power <- function(data,
 
   ## detect edges
   edges = 1+which(diff(as.numeric(data$tag))!=0)
+  if(length(edges)==0){
+    stop("Could not find any transition edge in the signal!")
+  }
 
   ## Locally improve edge detection
   edges1 <- sapply(edges, function(edge){
@@ -380,8 +385,8 @@ extract.power <- function(data,
                      length<=l.max)
 
   if(dim(initial.markers)[1] <= 1 ){
-    warning("Could not find any marker")
-    return( data.frame(start=c(),end=c(),length=c(),P=c(),e=c() ))
+    stop("Could not find any marker")
+    #return( data.frame(start=c(),end=c(),length=c(),P=c(),e=c() ))
   }
 
   ## Prune potentially extra markers
@@ -596,6 +601,7 @@ extract.power <- function(data,
       work[anomalous.duration,]$duration <- NA
     }
 
+    result$baseline = baseline
     work = effective.power(work,baseline)
 
   }else{
@@ -667,6 +673,7 @@ summary.EnergyAnalysis <- function(object, ...){
     cat(" (all valid)\n\n")
   }
 #  cat("\nAll data outliers:\n")
+  cat("Baseline method: ",x$baseline,"\n")
   with(x$work,{
   cat("  Power: mean=",format(mean(P,na.rm=TRUE),digits=3)," sd=",format(sd(P,na.rm=TRUE),digits=3)," (",
       round(sd(P,na.rm=TRUE)/mean(P,na.rm=TRUE)*100,1),"%)\n",sep="")
@@ -702,7 +709,7 @@ summary.EnergyAnalysis <- function(object, ...){
   #cat(" Thoughput: ", (x$n / as.double(x$elapsed,units="secs") * 1e-6), "M samples per sec\n" )
 }
 
-plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
+plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,main=NULL,...){
   P <- NULL ## to mute down NOTE from R CMD check
   start <- end <- NULL # to mute down CMD check
 
@@ -853,9 +860,13 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,...){
     even <- !even
   }
 
-  par(mar=c(3,4,0,2))
+  par(mar=c(4,4,0,2))
   bp(x$work$E,"Energy [J]","orange")
 
+  if(!is.null(main)){
+    x0 = par("usr")[1] - par("plt")[1]/(diff(par("plt"))[1])*.75 * diff(par("usr"))[1]
+    mtext(main,side=1,at=x0,line=2,adj=c(0,0),xpd=TRUE,font=2)
+  }
   layout(1)
   par(mar=push.mar)
 }
