@@ -22,3 +22,14 @@ E.g.
 
 The effective power consumption is estimated by subtracting the sleep level power from the average power measured during the work phase.
 
+---
+
+This package is not currently on CRAN, to install it, use `devtools`:
+
+```
+install.packages("devtools")
+
+library(devtools)
+
+install_github("SoftengPoliTo/powtran")
+```
