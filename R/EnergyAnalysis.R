@@ -156,14 +156,14 @@ utils::suppressForeignCheck(c("res", "task.id","keep","start","end"))
 extract.power <- function(data,
                             t.sampling,            # sampling period [s]
                             N=30,                  # number of markers [#]
-                            marker.length=5000,    # marker pulse widht [samples]
+                            marker.length=5,       # marker pulse widht [samples]
                             marker.tolerance=0.25, # marker width tolerance [%]
-                            cutoff = 9,            # Cut-off freq. [Hz]
+                            cutoff = 40,           # Cut-off freq. [Hz]
                             adjust = 2,            # density function smoothing
                             peakspan = 69,         # width of peak detection
                             intermediate=FALSE,    # returns intermediate computations
                             include.rawdata=FALSE, # should rawdata be included?
-                            baseline = "both"
+                            baseline = "gmin"
 ){
   #start <- end <- NULL # to mute down CMD check
   ## Arguments parsing and adjustment ##
@@ -182,7 +182,7 @@ extract.power <- function(data,
 #     warning("Marker lenght is too short, it is intended to be in seconds\n",
 #             t.sampling," sec = ", marker.length, " samples")
   }else{
-
+    # then it is assumed to be the number of samples
   }
 
   time.start = Sys.time()
@@ -249,7 +249,7 @@ extract.power <- function(data,
   ## low pass filter (using moving average or FFT (this latter slower))
   #f.cut = dim(data)[1] * t.sampling * cutoff
   #lP = lowpass(data$P,f.cut)
-  window.width = round(1/(t.sampling*2*cutoff))
+  window.width = round(2/(t.sampling*cutoff))
   lP = moving.mean(data$P,window.width) ## 20 times faster!!
 
 
@@ -616,7 +616,9 @@ extract.power <- function(data,
 
 
 effective.power <- function(work,baseline="both",FUN=median){
-  baseline.options = c("both","left","right", "gboth","gleft","gright","gmin")
+  baseline.options = c("both","left","right",
+                       "gboth","gleft","gright",
+                       "gmin","0")
   baseline <- tolower(baseline)
   bl.sel = grep(paste("^",baseline,sep=""),baseline.options)
   if(length(bl.sel)==0 || length(bl.sel)>1){
@@ -640,7 +642,9 @@ effective.power <- function(work,baseline="both",FUN=median){
     #6: gright
     FUN(P.idle.right),
     #7: gmin
-    min(c(P.idle.left,P.idle.right))
+    min(c(P.idle.left,P.idle.right)),
+    #8: 0 (zero)
+    0
   ))
 
   work$P = work$P.real - P.idle

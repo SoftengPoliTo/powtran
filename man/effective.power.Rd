@@ -46,6 +46,10 @@ by the \code{baseline} argument:
 \item{"gright"}{uses an aggregated value computed from the sleep phases
                 following (i.e. on the \emph{right})
                 all the work units.}
+\item{"gmin"}{uses the global minimum value among the sleep phases
+                either before or after all the work units.}
+\item{"0"}{does not use any baseline (i.e. uses 0 as baseline).}
+
 }
 
 The aggregation of two or more power levels is computed using the

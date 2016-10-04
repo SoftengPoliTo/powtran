@@ -12,14 +12,14 @@ Computes the Cohen's d and Hedges'g effect size statistics.
 extract.power(data,
               t.sampling,
               N=30,
-              marker.length=5000,
+              marker.length=5,
               marker.tolerance=0.25,
-              cutoff = 9,
+              cutoff = 40,
               adjust = 2,
               peakspan = 69,
               intermediate=FALSE,
               include.rawdata=FALSE,
-              baseline = "both")
+              baseline = "gmin")
 
 }
 %- maybe also 'usage' for other objects documented here.
@@ -49,6 +49,8 @@ after that -- as a consequence -- it finds the work units between
 the markers.
 
 Starting from the work units, using the function \code{\link{effective.power}} the effective power of the work units is computed.
+The argument \code{baseline} is passed to that function, see
+\code{\link{effective.power}} for the possible values and meaning.
 }
 \value{
 A list of class \code{EnergyAnalysis} containing the following components:
