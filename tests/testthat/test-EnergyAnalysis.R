@@ -31,7 +31,7 @@ context("extract.power")
 
 ### FIXTURES #############################
 voltage = 5
-period = 1/10000
+period = 1/1000
 
 ### TESTS #############################
 
@@ -157,17 +157,13 @@ test_that("Norm trace from Android @ 125kHz",{
   expect_gte(sum(!is.na(res$work$P)),25)
 })
 
-test_that("Usual trace from Android @ 125kHz",{
-  file = "tests/test_with_file.RData"
-  load(file)
-  #res = extract.power(power.samples,t.sampling = 1/125000,marker.length = .300)
-  res = extract.power(power.samples,
-                      t.sampling = 1/125000,
-                      marker.length = .300,
-                      baseline = "gmin")
+test_that("Low sampling frequncy (e.g. 1Hz)",{
+  filename = "tests/pt_all.txt"
+  samples = read.table(filename, dec=",", header=TRUE, col.names="P", skip=1)
+  res = extract.power(samples/1000, 1, marker.length=7)
 
   plot(res)
   #summary(res)
-  expect_gte(dim(res$work)[1],30)
-  expect_gte(sum(!is.na(res$work$P)),25)
+  expect_equal(dim(res$work)[1],30)
+  expect_equal(sum(!is.na(res$work$P)),30)
 })

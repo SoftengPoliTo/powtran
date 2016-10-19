@@ -5,6 +5,6 @@ S3method(summary,EnergyAnalysis)
 import(plyr)
 importFrom("grDevices", "rgb")
 importFrom("graphics", "abline", "boxplot", "curve", "layout", "par",
-             "plot", "rect", "symbols", "text")
+             "plot", "rect", "symbols", "text","mtext")
   importFrom("stats", "density", "embed", "median", "quantile")
   importFrom("utils", "head", "tail")

@@ -50,10 +50,17 @@ moving.mean <- function(x,n,smoothed=TRUE){
   cx <- cumsum(x)
   if(smoothed){
       left = floor((n-1)/2)
-      rsum <- c(cx[1:left+n/2-1]/(1:left+n/2-2),
+      if(left<1){
+        rsum <- c(
+                  (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n,
+                  (cx[length(x)]-cx[(length(x)-n+1):(length(x)-n/2)]) / (n-1):(n/2)
+        )
+      }else{
+        rsum <- c(cx[1:left+n/2-1]/(1:left+n/2-2),
                 (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n,
                 (cx[length(x)]-cx[(length(x)-n+1):(length(x)-n/2)]) / (n-1):(n/2)
                 )
+      }
   }else{
     rsum <- (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n
   }
@@ -83,8 +90,9 @@ outliers <- function(x,iqm=3,index=F,logic=F){
 #
 .ds <- function(x,t.sampling,ns=2048){
   n = length(x)
+  if(n<ns) ns <- n
   step = floor(n/ns);
-  samples = seq(round(step/2),n,by=step)
+  samples = seq(max(1,round(step/2)),n,by=step)
   data.frame(t = (samples-1)*t.sampling,
              P = x[samples]
   )
@@ -156,9 +164,9 @@ utils::suppressForeignCheck(c("res", "task.id","keep","start","end"))
 extract.power <- function(data,
                             t.sampling,            # sampling period [s]
                             N=30,                  # number of markers [#]
-                            marker.length=5,       # marker pulse widht [samples]
+                            marker.length=5,       # marker pulse widht [seconds]
                             marker.tolerance=0.25, # marker width tolerance [%]
-                            cutoff = 40,           # Cut-off freq. [Hz]
+                            cutoff = min(40,1/t.sampling),# Cut-off freq. [Hz]
                             adjust = 2,            # density function smoothing
                             peakspan = 69,         # width of peak detection
                             intermediate=FALSE,    # returns intermediate computations
@@ -185,6 +193,13 @@ extract.power <- function(data,
     # then it is assumed to be the number of samples
   }
 
+  if(cutoff>1/t.sampling){
+    warning(paste("The cut-off frequency cannot be ",
+                  "higher than sampling frequency.\n",
+                  "\tForcing it to be equal!"))
+    cutoff = 1/t.sampling
+  }
+
   time.start = Sys.time()
 
   result = list()
@@ -194,11 +209,7 @@ extract.power <- function(data,
   if(include.rawdata){
       result$P = data$P
   }else{
-      ns = 2048
-      step = floor(result$n/ns);
-      samples = seq(round(step/2),result$n,by=step)
-      result$P.sample = data.frame(t = (samples-1)*t.sampling,
-                                   P = data$P[samples])
+      result$P.sample = .ds(data$P,t.sampling)
   }
 
 
@@ -232,16 +243,21 @@ extract.power <- function(data,
                          })
   thresholds = dens$x[thresholds.ids]
 
-  valid =
-    dens$y[thresholds.ids]/head(dens$y[dens$peaks],-1)<0.66 &
-    dens$y[thresholds.ids]/tail(dens$y[dens$peaks],-1)<0.66
+  if(length(thresholds)>1){
+    valid =
+      dens$y[thresholds.ids]/head(dens$y[dens$peaks],-1)<0.66 &
+      dens$y[thresholds.ids]/tail(dens$y[dens$peaks],-1)<0.66
+    thresholds = thresholds[valid]
+  }
 
-  thresholds = thresholds[valid]
   if(intermediate){
     result$peaks = dens$x[dens$peaks]
     result$thresholds = thresholds
   }
 
+  if(length(thresholds)==0){
+    stop("Could not find any threshold")
+  }
   ## 2. Tagging samples ##
   ## tag levels are those corresponding to peaks
   tag.levels <- paste0("L",seq(dens$peaks))
@@ -385,6 +401,7 @@ extract.power <- function(data,
                      length<=l.max)
 
   if(dim(initial.markers)[1] <= 1 ){
+    print(id.tab)
     stop("Could not find any marker")
     #return( data.frame(start=c(),end=c(),length=c(),P=c(),e=c() ))
   }

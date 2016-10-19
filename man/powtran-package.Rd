@@ -43,6 +43,7 @@ The main functions are:
 \describe{
 \item{0.1}{Initial version after several trials and debugging}
 \item{0.1.1}{Minor fixes, added \code{0} as possible baseline}
+\item{0.1.2}{Fixes for very low sampling frequencies}
 }
 }
 \author{

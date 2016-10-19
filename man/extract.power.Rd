@@ -14,7 +14,7 @@ extract.power(data,
               N=30,
               marker.length=5,
               marker.tolerance=0.25,
-              cutoff = 40,
+              cutoff = min(40, 1/t.sampling),
               adjust = 2,
               peakspan = 69,
               intermediate=FALSE,
@@ -34,7 +34,7 @@ extract.power(data,
 \item{marker.tolerance}{ marker width tolerance as a percentage}
 \item{cutoff}{ Cut-off frequency used to smooth down the samples
                 and identify the markers, it is expressed in Hz
-                (default: 9 Hz)}
+                (default: min between 40 Hz and sampling frequency)}
 \item{adjust}{ density function smoothing parameter (default=2)}
 \item{peakspan}{ width of peak detection (default=69) }
 \item{intermediate}{returns intermediate computations results }
