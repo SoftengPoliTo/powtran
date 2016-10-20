@@ -160,7 +160,6 @@ outliers <- function(x,iqm=3,index=F,logic=F){
 #
 # - noise: the estimated length of noise runs
 #
-utils::suppressForeignCheck(c("res", "task.id","keep","start","end"))
 extract.power <- function(data,
                             t.sampling,            # sampling period [s]
                             N=30,                  # number of markers [#]
@@ -173,7 +172,7 @@ extract.power <- function(data,
                             include.rawdata=FALSE, # should rawdata be included?
                             baseline = "gmin"
 ){
-  #start <- end <- NULL # to mute down CMD check
+  start <- end <- NULL # to mute down CMD check
   ## Arguments parsing and adjustment ##
   if(is.data.frame(data)){
     if(! "P" %in% names(data)){
