@@ -1,3 +1,32 @@
 .Rproj.user
 .Rhistory
 .RData
+
+tests/testthat/Rplots.pdf
+inst/doc
+
+vignettes/Powtran_Tool_Description_cache/html/__packages
+
+vignettes/Samples.RData
+
+vignettes/Rplots.pdf
+
+vignettes/Powtran_Tool_Description_cache/latex/setup_e6fd9ad81b1dd1abe92316e99c2dcbdf.rdx
+
+*.rdb
+
+*.rdx
+
+vignettes/Powtran_Tool_Description_cache/html/load merge android_3761e1d98a22765446776a10c40839b8.RData
+
+vignettes/Powtran_Tool_Description_cache/html/process merge android_25c88381b963079863c0fff144d4e550.RData
+
+vignettes/Powtran_Tool_Description_cache/html/setup_658e8f645826d132c228e27f0fcf5a44.RData
+
+vignettes/Powtran_Tool_Description_cache/latex/__packages
+
+vignettes/Powtran_Tool_Description_cache/latex/load merge android_65650000686923d647079c245385f26d.RData
+
+vignettes/Powtran_Tool_Description_cache/latex/process merge android_5e160161f2040f60bfee0479b2273676.RData
+
+vignettes/Powtran_Tool_Description_cache/latex/setup_e6fd9ad81b1dd1abe92316e99c2dcbdf.RData

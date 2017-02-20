@@ -8,5 +8,8 @@ Maintainer: Marco Torchiano <marco.torchiano@polito.it>
 Description: This package is able to analyze power traces from repeated executions of software applications or algorithms in a efficient and accurate way.
 License: GPL (>= 2)
 LazyData: TRUE
-Suggests: testthat
+Suggests: testthat,
+    knitr,
+    rmarkdown
 Imports: plyr
+VignetteBuilder: knitr

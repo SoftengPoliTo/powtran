@@ -1,0 +1,645 @@
+---
+title: "PowTrAn - Power Trace Analyzer"
+author: "Marco Torchiano"
+date: "`r Sys.Date()`"
+bibliography: biblio.bib
+output: pdf_document
+#output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{PowTrAn - Power Trace Analyzer}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r utility, echo=FALSE}
+library(powtran)
+library(knitr)
+
+dsplot <- function(x,ns=2000,x0=NA,x1=NA,add=FALSE,...){
+  n = length(x)
+  if(n>=ns){
+    step = floor(n/ns);
+    samples = seq(1,n,by=step)
+    if(all(!is.na(x0),!is.na(x1))){
+      w = (x1-x0)/n
+      plot(x0+samples*w,x[samples],t="l",...)
+    }else{
+      if(add){
+        lines(samples,x[samples],...)
+      }else{
+        plot(samples,x[samples],t="l",...)
+      }
+    }
+  }else{
+      if(add){
+        lines(x,...)
+      }else{
+        plot(x,t="l",...)
+      }
+  }
+}
+
+##########################################################################
+## code by Martin Maechler <maechler at stat.math.ethz.ch>
+## found on https://stat.ethz.ch/pipermail/r-help/2005-November/083376.html
+peaks <- function(series, span = 3, do.pad = TRUE) {
+  if((span <- as.integer(span)) %% 2 != 1) stop("'span' must be odd")
+  s1 <- 1:1 + (s <- span %/% 2)
+  if(span == 1) return(rep.int(TRUE, length(series)))
+  z <- embed(series, span)
+  v <- apply(z[,s1] > z[, -s1, drop=FALSE], 1, all)
+  if(do.pad) {
+    pad <- rep.int(FALSE, s)
+    c(pad, v, pad)
+  } else v
+}
+
+###############################################
+## Compute moving mean from a vector
+##
+moving.mean <- function(x,n,smoothed=TRUE){
+  cx <- cumsum(x)
+  if(smoothed){
+      left = floor((n-1)/2)
+      if(left<1){
+        rsum <- c(
+                  (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n,
+                  (cx[length(x)]-cx[(length(x)-n+1):(length(x)-n/2)]) / (n-1):(n/2)
+        )
+      }else{
+        rsum <- c(cx[1:left+n/2-1]/(1:left+n/2-2),
+                (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n,
+                (cx[length(x)]-cx[(length(x)-n+1):(length(x)-n/2)]) / (n-1):(n/2)
+                )
+      }
+  }else{
+    rsum <- (cx[n:length(x)] - c(0,cx[1:(length(x)-n)]))/n
+  }
+  return( rsum )
+}
+
+```
+
+```{r setup, echo=FALSE, cache=TRUE}
+
+load("Samples.RData")
+time.process = 
+system.time(
+res.quick <- extract.power(power.samples2,t.sample2,
+                    marker.length = marker.length2,
+                    include.rawdata = TRUE,
+                    intermediate = TRUE, 
+                    baseline="gmin")
+)
+  
+
+p.sample = 1 / t.sample
+p.sample2 = 1 / t.sample2
+
+res = extract.power(power.samples,t.sample,
+                    marker.length = marker.length,
+                    include.rawdata = TRUE,
+                    intermediate = TRUE, 
+                    baseline="gmin")
+
+
+```
+
+###Abstract
+
+
+#Introduction
+
+Software power consumption measurement and estimation is important
+
+Two approaches for identifying task-related data in power traces:
+
+- online: synchronization between recorder and system under measurement;
+
+  Only the portion of the traces pertaining the observed tasks are 
+  recorded and later on processed.
+  
+  It requires accurate synchronization that is based on the capability to  
+  timely communicate between  the device and the measurement instrumentation.
+
+- offline: adding markups to the traces.
+
+  All the traces for a series of experiment is recorded, later on
+  during an analysis phase the segments pertaining the observed tasks
+  are extracted and processed.
+  
+  It requires no particular synchronization, it suffices a trivial
+  instrumentation to add markups in the traces.
+  
+  A baseline for power consumption can be estimated on the basis
+  of the portion of the trace surrounding the observed tasks.
+
+The tool presented here supports the offline power trace analysis.
+
+The goal of the tool is to **analyze power traces from software execution**.
+
+The tools solves the most relevand issues in such analysis and provide
+an approach that can be integrated in a simple workflow for software
+energy measurement.
+
+# Background
+
+## Literature
+
+## Case studies
+
+As a case study to illustrate the main issues regarding 
+the analysis of power traces we will take into consideration
+two case studies on two different platforms.
+
+-----------------  ----------  ----- ---------- --------
+ Device            Algorithm   Size  Time [ms]  Samples
+-----------------  ----------  ----- ---------- --------
+ Raspberry Pi 1A   Bubble      10k   `r round(mean(res$work$duration)*1000)`          `r format(length(power.samples)/1000,big.mark=",")`k
+ 
+ LG Nexus 4        Quick       50k   `r round(mean(res.quick$work$duration,na.rm=T)*1000)`       `r format(length(power.samples2)/1000,big.mark=",")`k
+-----------------  ----------  ----- ---------- --------
+
+Both devices use a CPU based on an ARM achitecture.
+
+The raspberry adopts a single-core 32-bit CPU running at 700 MHz 
+
+
+The task consisted in sorting an array of `int` elements, the task was repeated 30 times in each experiment.
+
+Several repetitions are needed to average out measurement error
+
+# Method
+
+## Marker
+
+The technique adopted for identifying the task trace consists
+in generating a marker before the task and one after it.
+
+The marker is a square impulse that is generated through a sequence of three phases: sleep, busy, and sleep. The busy phase is produced by making the CPU run at 100%, thus causing a high power consumption.
+The sleep phases are generated by a sleep period where the CPU is not used at all, thus causing a minimum consumption.
+
+The marker can be generated using the following fragment of Java code
+
+```{r java,eval=FALSE}
+Thread.sleep(markerLength);         // SLEEP
+long temp=System.currentTimeMillis()+ markerLength;  			
+while(temp>System.currentTimeMillis()){ // BUSY
+  int count = 0;
+  for(int i=0; i<markerLength; ++i){
+    count += i;
+  }
+}
+Thread.sleep(markerLength);     // SLEEP
+```
+
+Markers are places before and after each execution of the observed task, in practice two tasks are separated by a marker.
+
+```{r first look at trace,echo=FALSE, fig.cap="Example of trace with markers."}
+
+from = res$work$end[8]
+to = res$markers$end[10]
+
+first_look <- function(phases=TRUE){
+  ss=seq(from,to,by=10)
+  par(mar=c(4,4,.5,.5))
+  
+  #plot(ss*t.sample,power.samples[ss],t="l",xlab="time [s]",ylab="Power [W]")
+  dsplot(power.samples[ss],x0=from*t.sample,x1=to*t.sample,
+         xlab="time [s]",ylab="Power [W]")
+  if(phases){
+      top = par("usr")[4]
+      with(res$markers[9:10,],{
+        rect(start*t.sample,0,end*t.sample,top,col=rgb(.118,.565,1,.3),border=NA)  
+        text((start+end)/2*t.sample,top,"\nMarker\nBusy",col="dodgerblue",adj=c(.5,1))
+      })
+      
+      rect(res$work$end[8:9]*t.sample,0,res$markers$start[9:10]*t.sample,top,col=rgb(.698,.133,.133,.2),border=NA)
+      text(res$work$end[8:9]*t.sample,top,"\nMarker\nSleep",col="firebrick",adj=c(-0.1,1))
+      
+      rect(res$markers$end[9]*t.sample,0,res$work$start[9]*t.sample,top,col=rgb(.698,.133,.133,.2),border=NA)  
+      text(res$markers$end[9]*t.sample,top,"\nMarker\nSleep",col="firebrick",adj=c(-0.1,1))
+      
+      rect(res$work$start[9]*t.sample,0,res$work$end[9]*t.sample,top,col=rgb(1,.647,0,.2),border=NA)  
+      text((res$work$start[9]+res$work$end[9])/2*t.sample,top,"\nWork",col="darkorange",adj=c(0.5,1))
+  }
+}
+```
+
+```{r first look at trace explained,echo=FALSE,fig.width=10,fig.width=6}
+first_look();
+```
+
+## Marker detection
+
+The accurate identification of the real work of the tasks is conditioned to the correct detection of the markers in the trace.
+
+There are two main factors affecting the detection of markers:
+
+- Noise: makes the detection of the markers edges difficult and the measure of the power level imprecise;
+- Size: makes the processing expensive[^1] and particular care must be taken in selecting the appropriate algorithms. In addition graphical representation must use a downsampled version to make the trace discernible and avoid severe peformence issues when vectorial formats -- e.g. PDF -- are used.
+
+[^1]: for an experiment lasting 1 minutes, at a sampling rate of 10kHz, we get 600k samples.
+
+The procedure to analyze the date is made up of the following steps:
+
+1. step detection
+2. identification of markers
+3. identification of work units
+4. power level and baseline estimation
+5. energy computation
+
+### Step detection
+
+A preliminary step to marker detection consists in the detection of the rising edges of the markers pulses.
+The noise in the signal produces several spurious edges that should be discarded in order to correctly detect the markers.
+
+The spurious edges can be removed by means of a low-pass filter that removes the high-frequency noise and thus the spurious edges.
+Unfortunately the ideal implementation of a low-pass filter uses a FFT that on large signal provides bad perfomances in addition the presence of marker steps gives rise to Gibbs phenomena[@Mallat2009].
+A similar result can be achieved using a moving average that is computationally-wise much faster.
+
+The power signal with the markers embedded in it can be considered similarly to a piecewise constant (PWC) signal [@Little2011]. Such signals can be analyze by piecewise constant smoothing, or as level-set recovery. Unfortunately the trace of the power during the experimental task is not guaranteed to be constant, therefore the signal is not exactly PWC.
+
+We adopted a level-set recovery approach based on kernel density estimation, using the following procedure:
+
+- the kernel density is estimated,
+- the main peaks in the density function are identified
+- the thresholds between power level clusters are determined
+- the signal is represented as a seguence of level runs
+
+```{r kde peaks, echo=FALSE,fig.width=10,fig.height=4}
+  ## Estimate density kernel
+  dens <- density(power.samples,adjust=2,n=2048)
+
+  ## Find peaks in the distribution (the most common power levels)
+  dens$peaks <- which(peaks(dens$y,span=69) & dens$y>mean(dens$y))
+  
+  power.levels = dens$x[dens$peaks]
+  
+  ## Identify level thresholds between levels
+  ## as the points of minimum density between peaks
+  thresholds.ids = apply(cbind(head(dens$peaks,-1),
+                               tail(dens$peaks,-1)),1,
+                         function(x){
+                           ss = dens$y[x[1]:x[2]]
+                           x[1] + mean(which(ss <= min(ss)))
+                         })
+  thresholds = dens$x[thresholds.ids]
+  
+  ## low pass filter using moving average (faster than FFT)
+  window.width = marker.length/t.sample / 10
+  lP = moving.mean(power.samples,window.width) ## 20 times faster!!
+
+  
+  tag.levels <- paste0("L",seq_along(dens$peaks))
+  tag <- factor(tag.levels[findInterval(lP,c(0,thresholds))],
+                     tag.levels,
+                     ordered=T)
+
+  edges = 1+which(diff(as.numeric(tag))!=0)
+  edges.rising = edges[as.numeric(tag[edges])-as.numeric(tag[edges-1])>0]
+  ### Visualize
+  
+  rng = 1:(4*4*marker.length*p.sample)
+  p.min=min(power.samples[rng])
+  #p.max=max(power.samples[rng])
+  p.max=quantile(power.samples[rng],.999) 
+  layout(matrix(c(rep(1,3),2),nrow=1))
+  par(mar=c(4,4,.5,0))
+  dsplot(power.samples[rng],ylab="Power",ylim=c(p.min,p.max),las=1,frame.plot=FALSE)
+  dsplot(lP[rng],col=rgb(1,0.647,0,.5),lwd=4,add=TRUE)
+
+  segments(-100,power.levels,2*tail(rng,1),power.levels,col="red",lty=2,xpd=TRUE)
+  segments(-100,thresholds,2*tail(rng,1),thresholds,col="navy",xpd=TRUE,lwd=2)
+  points(edges,rep(thresholds,length(edges)),col="blue",pch=1)
+  grid(nx=NA,ny=NULL)
+  #axis(4,labels=FALSE)
+  par(mar=c(4,0.1,.5,.5))
+  plot(dens$y,dens$x,t="l",ylim=c(p.min,p.max),xlab="density",yaxt="n",frame.plot=FALSE)
+  segments(0,0,0,max(dens$x),col=rgb(0,0,0,.5))
+  axis(2,labels=FALSE)
+  segments(-100,power.levels,dens$y[dens$peaks],power.levels,col="red",lty=2,xpd=TRUE)
+  segments(-5,thresholds,max(dens$y),thresholds,col="navy",xpd=TRUE,lwd=2)
+  grid(nx=NA,ny=NULL)
+  
+```
+
+### Identification of markers
+
+Markers can be identified based on three key characteristics:
+
+- any individual marker pulse starts with a rising edge,
+- the markers should fit a repeating pattern, with a given number of cycles.
+- any individual marker pulse has a predefined width, within a given error interval (??),
+
+The period of the repeating pattern can be identified by finding the 
+maximum of the auto-correlation function [@ShumwayStoffer2006]. 
+The offset of the first marker pulse w.r.t. the beginning of the power trace can be identified by finding the maximum of the cross-correlation function applied to the trace and an ideal pulse train having the previously determined period.
+
+Once the periodicity and phase of the trace has been identified, the edges that most likely start the marker pulses are identified by means of a cross-correlation of a periodical function with the edges.
+The periodical function is defined as follows:
+
+$$ \left( 1 + cos \left ( (x-first) \cdot \frac{n \cdot 2 \pi}{last-first}\right) \right)^2$$
+
+
+```{r edge markers freq, echo=FALSE,fig.width=10,fig.width=6}
+autocor <- function(x,lag){
+  lag <- round(lag)
+  if(length(lag)==1){ 
+    return( cor(tail(x,-lag),head(x,-lag)) )
+  }
+  sapply(lag,function(l) cor(tail(x,-l),head(x,-l)))
+}  
+  
+  lag.min = 3*marker.length/t.sample
+  lag.max = round(length(power.samples)/29)
+
+  period = round(optimize(function(x)autocor(power.samples,x),
+           lower=lag.min,upper=lag.max,maximum = TRUE,
+           tol = 1
+           )$maximum)
+  
+  
+  ## Identify shift of first pulse w.r.t. beginning of trace
+  
+  power.densities = dens$y[dens$peaks]
+  base.power = power.levels[which.max(head(power.densities,length(power.densities)/2))]
+  busy.power = rev(power.levels)[
+    which.max(head(rev(power.densities),length(power.densities)/2))
+  ]
+  marker.width = round(marker.length/t.sample)
+  base.module = rep(c(busy.power,base.power,
+                      (busy.power+base.power)/2,base.power),
+                  c(marker.width,marker.width,
+                    period-3*marker.width,marker.width)
+                )
+  pulse.train = rep(base.module,length.out=length(power.samples))
+  
+  #dsplot(power.samples)
+  #dsplot(pulse.train,add=TRUE,col=rgb(1,165/255,0,.5),lwd=2)
+  ccor <- function(lag) 
+                  cor(head(pulse.train,-round(lag)),
+                      tail(power.samples,-round(lag)))
+  
+  shift.1 = optimize(ccor,
+                         lower=0,upper=mean(edges.rising[1:2]),
+                         maximum = TRUE, tol = 1
+                        )
+  shift.2 = optimize(ccor,
+                lower=mean(edges.rising[1:2]),
+                upper=mean(edges.rising[2:3]),
+                         maximum = TRUE, tol = 1
+                        )
+  
+  if(shift.1$objective>shift.2$objective){
+    off = round(shift.1$maximum)
+  }else{
+    off = round(shift.2$maximum)
+  }
+
+
+f = period/(2*pi)
+sw = ((1+cos((edges.rising-off)/f))/2)^2
+
+dsplot(head(power.samples,length(power.samples)/3),
+       x0=0,x1=length(power.samples)/3*t.sample,
+       xlab="time [s]",ylab="Power [W]",col="gray")
+top = par("usr")[4]
+bottom = (par("usr")[3]+top)/2
+
+segments((edges.rising+window.width/4)*t.sample,0,
+         (edges.rising+window.width/4)*t.sample,(top-bottom)*sw+bottom,
+         col="purple",lwd=2)
+
+ss = seq(1,length(power.samples),by=length(power.samples)/2000)
+lines(ss*t.sample,(top-bottom)*((1+cos((ss-off)/f))/2)^2+bottom,lty=2,col="orange")
+```
+
+## Identification of work units
+
+The next step step consists in identifying the work units that are located within the pulses.
+This task consists in detecting the beginning and end of the work units in the power trace.
+The location of the work unit is performed using the raising edges of the marker pulses as references:
+
+- the beginning of the work unit is estimated to be 2 marker pulse widths after the previous edge
+- the end is estimated to be one width before the next edge.
+
+This option had the double advantage of both being easy to implement and avoiding possible errors of alternative solutions e.g. based on edge detection that would be affected by spurious edges.
+
+```{r work where,echo=FALSE,fig.width=8,fig.width=5}
+first_look()
+arrows(res$markers$start[9]*t.sample,2.7,res$work$start[9]*t.sample,2.7,
+       col="olivedrab",length=0.1)
+arrows(res$work$start[9]*t.sample,2.7,res$markers$start[9]*t.sample,2.7,
+       col="olivedrab",length=0.1)
+text((res$markers$start[9]+res$work$start[9])*t.sample/2,2.7,
+      "2 markers",col="olivedrab",adj=c(.5,-0.1))
+arrows(res$markers$end[9]*t.sample,2.55,res$work$start[9]*t.sample,2.55,
+       col="purple",length=0.1)
+arrows(res$work$start[9]*t.sample,2.55,res$markers$end[9]*t.sample,2.55,
+       col="purple",length=0.1)
+text((res$markers$end[9]+res$work$start[9])*t.sample/2,2.55,
+      "1 marker",col="purple",adj=c(.5,-0.1))
+
+arrows(res$markers$start[10]*t.sample,2.55,res$work$end[9]*t.sample,2.55,
+       col="purple",length=0.1)
+arrows(res$work$end[9]*t.sample,2.55,res$markers$start[10]*t.sample,2.55,
+       col="purple",length=0.1)
+text((res$markers$start[10]+res$work$end[9])*t.sample/2,2.55,
+      "1 marker",col="purple",adj=c(.5,-0.1))
+
+```
+
+## Power level and baseline estimation
+
+Once the work units have been identified the power consumed by the system to carry on the task can be computed. The computation is subject to two main decisions:
+
+- what power value to measure?
+  
+    One option is to consider all the individual power values 
+    recorded in the trace, the other is to use their average.
+    
+    Since the ultimate goal is the computation of the energy
+    -- i.e. the integral of power over time -- the bare average
+    is equivalente in terms of the final results and extremely
+    more efficient in terms of memory occupation.
+
+- what is the amount of power ascribed to the program under test?
+
+    A first approximante answer could be: the program consumes
+    the power level recorded during the work unit (or its average).
+    Although such a value includes also
+    the power consumed by the idle system. 
+    
+    There is a difference
+    between real and effective power: the former is the 
+    measured value, the latter is the portion of it that
+    is specifically used for carrying on the computational task.
+
+The work clearly attributable to the task under consideration
+is show in the following figure:
+
+```{r work effective,echo=FALSE,fig.width=8,fig.width=5}
+first_look()
+
+ss=seq(res$work$start[9],res$work$end[9],length.out = 500)
+
+polygon(c(ss[1],ss,tail(ss,1),ss[1])*t.sample,
+        c(res$work$P.idle.left[9],power.samples[ss],res$work$P.idle.right[9],res$work$P.idle.left[9]),
+        col="purple",border=NA)
+rect(from*t.sample,res$work$P.idle.right[8],to*t.sample,0,        angle=30,density=10,col="purple",border=NA)
+```
+
+## Energy computation
+
+For each work unit we can compute the energy consumed by
+that task under evaluation using the basing formula:
+
+$$
+E = t * ( \overline{P} - P_{baseline} )
+$$
+
+Where $t$ is the taks time, $\overline{P}$ is the average
+power level during the task execution, and $P_{baseline}$
+is the baseline power, which correspond to the idle
+system consumption and is not directlu attributable to the task.
+
+The baseline power can be estimated on the basis of the power level during the sleep phases of the markers.
+
+Several different strategies can be applied for the computation.
+A first distinction can be made between:
+
+* local: only the sleep phases immediately before and after
+         the task under consideration are considered.
+         Local baseline has the advantage of offsetting
+         possibly non-constant background processes.
+
+* global: all the sleep phases enclosing the tasks are considered.
+        A global baseline has the advantage of filtering out local
+        noises by averaging the levels. As an alternative the
+        gloabl minimum can be used.
+
+
+-----------  -------  --------  --------------------------------------------
+Scope        Side     Code      Pro/Cons
+-----------  -------  --------  --------------------------------------------
+ Local        Left     `left`          Most simple solution. 
+                                       Can be affected by frequency
+                                       scaling after the marker pulse.
+
+ Local        Right    `right`         Other basic solution.
+                                       Less subject to frequency scaling
+                                       since the phenomenon is usually
+                                       less evident than after the
+                                       marker pulse.
+ 
+ Local        Both     `both`          Averages the two values to
+                                       balance the differences.
+
+ Global       Left     `gleft`         Uses the average of all sleep phases
+                                       preceding the work.
+ 
+ Gloabal      Right    `gright`        Uses the average of all sleep phases
+                                       following the work.
+ 
+ Global       Both     `gboth`         Uses the average of all sleep phases.
+                                       
+ 
+ Global       Both     `gmin`          Uses the minimum among all sleep phases.
+ 
+ Global       Both     `0`             Does not use any baseline power,
+                                       i.e. uses 0 as a baseline.
+-----------  -------  --------  --------------------------------------------
+
+
+#`Powtran` Pacakge
+
+The `powtran` R package[^2] implements the power trace analysis method presented above in this document.
+
+The packages consists of roughly 800 lines of R code.
+It has been optimized it is able to process  
+`r round(length(power.samples2)/1e6,2)`M samples
+in `r time.process["elapsed"]` s.
+
+[^2] The code is available on github: https://github.com/SoftengPoliTo/powtran
+
+
+The pacakge provides, as its main function, `extract.power` 
+that requires a few arguments:
+
+- `data`: the power trace collected using any power monitor,
+- `t.sampling`: the sampling period used to collecte the trace,
+- `N`: the number of task repetitions in the trace, 
+- `marker.lenght`: the marker pulse width.
+
+The result of the function contains a table with the energy consumed by each task repetition and can be plotted to produce a control chart.
+
+The procedure to analyze a power trace consists in a few steps:
+
+- process the power trace with the `extract.power` function,
+- perform a visual assessment using the control chart,
+- analyze the energy values to assess the task under observation.
+
+
+## Process the trace 
+
+The `powtran` package is currently not available on CRAN, threfore it must be installed from the GitHub repository. The installation has to be performed only once:
+
+```{r,eval=FALSE}
+install.packages("devtools")
+library(devtools)
+install_github("SoftengPoliTo/powtran")
+```
+
+The starting point of the analysis is a power trace (e.g. a vector `data` of numeric values). The function `extract.power` processes the power trace and returns the results:
+
+```{r,eval=FALSE}
+library(powtran)
+res = extract.power(data,       # samples
+                    t.sampling, # sampling period
+                    N,          # num. repetitions (30)
+                    marker.length, # marker step duration
+                    baseline    # method for baseline
+                                # computation
+                    )
+```
+
+The result contains, among other details, the work units that have been identified in the power trace. For each power unit the following information is reported:
+
+- `start` and `end` sample index of the work unit,
+- `duration` in sec
+- real power levels: for the work unit (`P.real`) and for the two
+  idle phases preceding and following the work unit (`P.idle.left` and `P.idle.right`)
+- the effective power (`P`) and energy (`E`)
+
+The following table reports an extract of the results from the analysis:
+
+```{r powtran result,echo=FALSE}
+kable(head(res$work,10),digits = 3,
+      col.names = c("start","end","t","P real","P left","P right","P","E"))
+```
+
+
+## Visual assessment
+
+Before answering the research questions we have to visually assess the results of the analysis. The assessment can be performed using the control chart that can be generated starting from the analysis result with the standard `plot()` function.
+
+In particular, looking at the data the following questions should be asked:
+
+- how much are they dispersed?
+- what is their range?
+- look at time, power, energy?
+
+
+```{r summary plot rb, echo=FALSE}
+plot(res)
+```
+
+
+
+```{r summary plot android, echo=FALSE}
+plot(res.quick)
+```
+
+
+

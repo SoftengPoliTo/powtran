@@ -238,7 +238,7 @@ extract.power <- function(data,
                                tail(dens$peaks,-1)),1,
                          function(x){
                            ss = dens$y[x[1]:x[2]]
-                           x[1] + which(ss == min(ss))
+                           x[1] + mean(which(ss <= min(ss)))
                          })
   thresholds = dens$x[thresholds.ids]
 
@@ -448,6 +448,12 @@ extract.power <- function(data,
                             sum(fit(initial.markers$start,s,freq)))
 
   mstart = mstart.opts[which.max(fit.opts)]
+
+  if(intermediate){
+    result$pitch.n = n
+    result$pitch.offset = mstart
+  }
+
 
   conv = fit(initial.markers$start,mstart,freq,2)
   ## select only the markers fitting the best fitting number of runs
