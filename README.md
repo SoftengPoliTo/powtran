@@ -27,9 +27,7 @@ The effective power consumption is estimated by subtracting the sleep level powe
 This package is not currently on CRAN, to install it, use `devtools`:
 
 ```
-install.packages("devtools")
+install.packages("devtools") # if not already installed
 
-library(devtools)
-
-install_github("SoftengPoliTo/powtran")
+devtools::install_github("SoftengPoliTo/powtran")
 ```
