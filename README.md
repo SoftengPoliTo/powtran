@@ -26,10 +26,22 @@ The effective power consumption is estimated by subtracting the sleep level powe
 
 This package is not currently on CRAN, to install it, use `devtools`:
 
+```r
+install.packages("devtools") # if not already installed
+
+devtools::install_github("SoftengPoliTo/powtran")
 ```
-install.packages("devtools")
 
-library(devtools)
+A sample usage is as follows:
 
-install_github("SoftengPoliTo/powtran")
+```r
+voltage = 5  # V
+period = 1/1000  # s
+
+# the text file contains one current sample per row
+filename = "tests/raspberrypi2_c_bubblesort_10000_3.txt"
+current.samples = scan(filename,skip=1,quiet = TRUE)
+res = extract.power(current.samples*voltage, # instant power [W]
+                    period) 
+plot(res)
 ```
