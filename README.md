@@ -1,8 +1,23 @@
-# powtran
+# PowTrAn
 POWer TRace ANalyzer
 
 Is an **R** package that is able to analyze power traces from repeated executions of software 
 applications or algorithms in a efficient and accurate way.
+
+## Workflow
+
+Taking as a reference the approach reported in the article [Methodological Guidelines for Measuring Energy Consumption of Software Applications](https://doi.org/10.1155/2019/5284645) where four steps are identified:
+
+1. **Goal (G)**: define the research question, the target device(s) on which the measurements will take place, and the context in which the SWUT is executed
+2. **How (H)**: decide how consumption will be measured and the procedure needed to carry out the measurement
+3. **Do (D)**: carry out the measurement and collect the data
+4. **Analyse (A)**: analyse the data and address the research question(s)
+
+The PowTrAn tool can be used in the initial part of the Analyse phase.
+
+## Analysis approach
+
+The *How* approach supported by this tool is a physical measyre that uses no explicit synchronization but adopts markers.
 
 The power traces are expected to be collected according to the following protocol:
 
