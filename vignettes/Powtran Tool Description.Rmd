@@ -2,13 +2,12 @@
 title: "PowTrAn - Power Trace Analyzer"
 author: "Marco Torchiano"
 date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    keep_tex: yes
+  html_document:
+    df_print: paged
 bibliography: biblio.bib
-output: pdf_document
-#output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{PowTrAn - Power Trace Analyzer}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r utility, echo=FALSE}
@@ -155,9 +154,9 @@ two case studies on two different platforms.
 -----------------  ----------  ----- ---------- --------
  Device            Algorithm   Size  Time [ms]  Samples
 -----------------  ----------  ----- ---------- --------
- Raspberry Pi 1A   Bubble      10k   `r round(mean(res$work$duration)*1000)`          `r format(length(power.samples)/1000,big.mark=",")`k
+ Raspberry Pi 1A   Bubble      10k   `r round(mean(res$work$duration)*1000)`          `r round(length(power.samples)/1000)`k
  
- LG Nexus 4        Quick       50k   `r round(mean(res.quick$work$duration,na.rm=T)*1000)`       `r format(length(power.samples2)/1000,big.mark=",")`k
+ LG Nexus 4        Quick       50k   `r round(mean(res.quick$work$duration,na.rm=T)*1000)`             `r round(length(power.samples2)/1000)`k
 -----------------  ----------  ----- ---------- --------
 
 Both devices use a CPU based on an ARM achitecture.
@@ -481,6 +480,26 @@ is show in the following figure:
 
 ```{r work effective,echo=FALSE,fig.width=8,fig.width=5}
 first_look()
+
+arrows(res$markers$start[9]*t.sample,2.7,res$work$start[9]*t.sample,2.7,
+       col="olivedrab",length=0.1)
+arrows(res$work$start[9]*t.sample,2.7,res$markers$start[9]*t.sample,2.7,
+       col="olivedrab",length=0.1)
+text((res$markers$start[9]+res$work$start[9])*t.sample/2,2.7,
+      "2 markers",col="olivedrab",adj=c(.5,-0.1))
+arrows(res$markers$end[9]*t.sample,2.55,res$work$start[9]*t.sample,2.55,
+       col="purple",length=0.1)
+arrows(res$work$start[9]*t.sample,2.55,res$markers$end[9]*t.sample,2.55,
+       col="purple",length=0.1)
+text((res$markers$end[9]+res$work$start[9])*t.sample/2,2.55,
+      "1 marker",col="purple",adj=c(.5,-0.1))
+
+arrows(res$markers$start[10]*t.sample,2.55,res$work$end[9]*t.sample,2.55,
+       col="purple",length=0.1)
+arrows(res$work$end[9]*t.sample,2.55,res$markers$start[10]*t.sample,2.55,
+       col="purple",length=0.1)
+text((res$markers$start[10]+res$work$end[9])*t.sample/2,2.55,
+      "1 marker",col="purple",adj=c(.5,-0.1))
 
 ss=seq(res$work$start[9],res$work$end[9],length.out = 500)
 

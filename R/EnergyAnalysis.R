@@ -847,10 +847,10 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,main=NULL,...){
 
 
   par(mar=c(3,4,0,2))
-  bp(x$work$P,"Power [W]","purple")
+  bp(x$work$P,"Power in Watt","purple")
 
   par(mar=c(4,3,0,3))
-  bp(x$work$duration,"Duration [s]","purple",horizontal=TRUE,hollow=is.na(x$work$P))
+  bp(x$work$duration,"Duration in s","purple",horizontal=TRUE,hollow=is.na(x$work$P))
 
   par(mar=c(3,3,0,3))
   plot(x$work$duration,x$work$P,xlab="Duration [s]")
@@ -887,7 +887,7 @@ plot.EnergyAnalysis <- function(x,work.unit=NULL,highlight=NULL,main=NULL,...){
   }
 
   par(mar=c(4,4,0,2))
-  bp(x$work$E,"Energy [J]","orange")
+  bp(x$work$E,"Energy in Joule","orange")
 
   if(!is.null(main)){
     x0 = par("usr")[1] - par("plt")[1]/(diff(par("plt"))[1])*.75 * diff(par("usr"))[1]
